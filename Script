@@ -451,7 +451,7 @@ local function monitorCharacter(player)
 
 		-- Validate Stats folder and required values
 		if not stats then
-			warn("Stats folder missing! Waiting...")
+		--	warn("Stats folder missing! Waiting...")
 			wait(1)
 			continue
 		end
@@ -460,7 +460,7 @@ local function monitorCharacter(player)
 		local moistness = stats:FindFirstChild("Moistness")
 
 		if not canSwim or not moistness then
-			warn("Required stats (canSwim or Moistness) missing! Waiting...")
+			--warn("Required stats (canSwim or Moistness) missing! Waiting...")
 			wait(1)
 			continue
 		end
@@ -474,7 +474,7 @@ local function monitorCharacter(player)
 				-- Find StandBlock in Workspace
 				local standBlock = workspace:FindFirstChild("StandBlock")
 				if not standBlock then
-					warn("StandBlock not found in Workspace!")
+				--	warn("StandBlock not found in Workspace!")
 					break
 				end
 
@@ -551,7 +551,7 @@ local function monitorCharacterO(player)
 
 		-- Validate Stats folder and required values
 		if not stats then
-			warn("Stats folder missing! Waiting...")
+			--warn("Stats folder missing! Waiting...")
 			wait(1)
 			continue
 		end
@@ -559,7 +559,7 @@ local function monitorCharacterO(player)
 		local oxygen = stats:FindFirstChild("Oxygen")
 
 		if not oxygen then
-			warn("Oxygen stat missing! Waiting...")
+			--warn("Oxygen stat missing! Waiting...")
 			wait(1)
 			continue
 		end
@@ -573,7 +573,7 @@ local function monitorCharacterO(player)
 				-- Find StandBlock in Workspace
 				local standBlock = workspace:FindFirstChild("StandBlock")
 				if not standBlock then
-					warn("StandBlock not found in Workspace!")
+					--warn("StandBlock not found in Workspace!")
 					break
 				end
 
