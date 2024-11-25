@@ -1,0 +1,667 @@
+-- Prevent auto-idling
+local vu = game:GetService("VirtualUser")
+game:GetService("Players").LocalPlayer.Idled:connect(function()
+	vu:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+	wait(1)
+	vu:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+end)
+
+-- Create the GUI in CoreGui
+local CoreGui = game:GetService("CoreGui")
+local ScreenGui = Instance.new("ScreenGui", CoreGui)
+ScreenGui.Name = "AutoElderGui"
+ScreenGui.ResetOnSpawn = false -- Prevents it from resetting when the player respawns
+
+-- Create the main Frame for the GUI with solid black background, light gray border, and UIStroke
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 500, 0, 500) -- Square frame size (500x500)
+Frame.Position = UDim2.new(0.5, -250, 0.5, -250) -- Centered on the screen
+Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- Solid black background
+Frame.BorderSizePixel = 2 -- Light gray border
+Frame.BorderColor3 = Color3.fromRGB(200, 200, 200) -- Light gray color for the border
+Frame.AnchorPoint = Vector2.new(0.5, 0.5) -- Ensuring it is centered
+Frame.ClipsDescendants = true -- Ensures no elements overflow
+
+-- Adding a red UIStroke to the frame
+local uiStroke = Instance.new("UIStroke", Frame)
+uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+uiStroke.Color = Color3.fromRGB(255, 0, 0) -- Red stroke
+uiStroke.Thickness = 2
+
+-- Create a ScrollingFrame for the names list, on the left side of the GUI
+local LabelFrame = Instance.new("Frame", Frame)
+LabelFrame.Size = UDim2.new(0.5, 0, 1, 0) -- Left half of the square frame
+LabelFrame.Position = UDim2.new(0, 0, 0, 0)
+LabelFrame.BackgroundTransparency = 1
+
+local ScrollingFrame = Instance.new("ScrollingFrame", LabelFrame)
+ScrollingFrame.Size = UDim2.new(1, 0, 1, 0)
+ScrollingFrame.Position = UDim2.new(0, 0, 0, 0)
+ScrollingFrame.BackgroundTransparency = 1
+ScrollingFrame.ScrollBarThickness = 8
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 50)
+
+-- Create a UIListLayout for the ScrollingFrame
+local listLayout = Instance.new("UIListLayout", ScrollingFrame)
+listLayout.FillDirection = Enum.FillDirection.Vertical
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 10)
+
+-- Function to update the ScrollingFrame canvas size dynamically
+local function updateCanvasSize()
+	local contentSize = listLayout.AbsoluteContentSize
+	ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, contentSize.Y)
+end
+
+
+-- Function to create buttons with gradient color
+local function createButton(name, color, position)
+	local button = Instance.new("TextButton", Frame)
+	button.Size = UDim2.new(0, 200, 0, 50) -- Button size
+	button.Text = name
+	button.BackgroundColor3 = color
+	button.BorderSizePixel = 0
+	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	button.Font = Enum.Font.SourceSansBold
+	button.TextSize = 22
+	button.BackgroundTransparency = 0.2
+	button.AutoButtonColor = false
+	button.TextXAlignment = Enum.TextXAlignment.Center
+	button.Position = position
+
+	-- Button Hover effect
+	button.MouseEnter:Connect(function()
+		button.BackgroundColor3 = color:Lerp(Color3.fromRGB(255, 255, 255), 0.3) -- Lighten on hover
+	end)
+
+	button.MouseLeave:Connect(function()
+		button.BackgroundColor3 = color
+	end)
+
+	-- Add rounded corners to the button
+	local corner = Instance.new("UICorner", button)
+	corner.CornerRadius = UDim.new(0, 15) -- More rounded corners
+
+	return button
+end
+
+local AddButton = createButton("Add Name", Color3.fromRGB(60, 120, 180), UDim2.new(0.75, -100, 0, 270))
+
+-- Create a TextBox for entering a name
+local NameTextBox = Instance.new("TextBox", Frame)
+NameTextBox.Size = UDim2.new(0, 200, 0, 40)
+-- Position the NameTextBox under the AddButton
+NameTextBox.Position = UDim2.new(0.75, -100, 0, AddButton.Position.Y.Offset + AddButton.Size.Y.Offset + 10)
+NameTextBox.Text = ""
+NameTextBox.PlaceholderText = "Enter Name"
+NameTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+NameTextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+NameTextBox.Font = Enum.Font.SourceSans
+NameTextBox.TextSize = 18
+NameTextBox.BorderSizePixel = 0
+local cornerTextBox = Instance.new("UICorner", NameTextBox)
+cornerTextBox.CornerRadius = UDim.new(0, 12)
+
+
+-- Create buttons for the menu with different colors
+local StartButton = createButton("Start", Color3.fromRGB(60, 160, 60), UDim2.new(0.75, -100, 0, 20))
+local PauseButton = createButton("Pause", Color3.fromRGB(200, 160, 60), UDim2.new(0.75, -100, 0, 90))
+local ExitButton = createButton("Exit", Color3.fromRGB(160, 60, 60), UDim2.new(0.75, -100, 0, 160))
+
+
+
+
+-- Table to store the list of names
+local dinosaurList = {}
+local dinosaurLabels = {}
+
+-- Function to add name to the list
+local function addNameToList(name)
+	if name == "" then return end
+	table.insert(dinosaurList, name)
+
+	-- Create the label for the new name
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.Size = UDim2.new(1, 0, 0, 30)
+	label.Text = name .. ": Waiting..."
+	label.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.Font = Enum.Font.SourceSans
+	label.TextSize = 18
+	label.BorderSizePixel = 0
+	label.BackgroundTransparency = 0.4
+	label.Parent = ScrollingFrame
+
+	-- Add an invisible button overlay for click functionality
+	local buttonOverlay = Instance.new("TextButton")
+	buttonOverlay.Size = UDim2.new(1, 0, 1, 0)
+	buttonOverlay.BackgroundTransparency = 1
+	buttonOverlay.Text = ""
+	buttonOverlay.Parent = label
+
+	-- Add functionality to remove name when clicked
+	buttonOverlay.MouseButton1Click:Connect(function()
+		label.BackgroundColor3 = Color3.fromRGB(160, 60, 60)
+		wait(0.5)
+		label:Destroy()
+		table.remove(dinosaurList, table.find(dinosaurList, name))
+		updateCanvasSize()
+	end)
+
+	-- Update the canvas size of the scroll frame
+	updateCanvasSize()
+end
+
+-- Connect the AddButton to add the entered name to the list
+AddButton.MouseButton1Click:Connect(function()
+	addNameToList(NameTextBox.Text)
+	NameTextBox.Text = ""
+end)
+
+-- Draggable Frame functionality
+local dragging, dragInput, dragStart, startPos
+Frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = Frame.Position
+		input.Changed:Connect(function()
+			if not dragging then return end
+			local delta = input.Position - dragStart
+			Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end)
+	end
+end)
+
+Frame.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+		startPos = Frame.Position -- Update startPos to the new position when dragging ends
+	end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+		Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
+-- Global variables to control Auto Elder
+_G.AutoEatDrink = false
+local autoElderCoroutine = nil
+local autoEatDrinkCoroutine = nil
+local isPaused = false
+local isSwitchingDino = false  -- New flag to track when switching dinosaurs
+
+-- Function to handle eating and drinking
+function autoEatDrink()
+	game.Workspace.GameEvents.EatPlant:FireServer(game.Workspace.GameMap.Ferns.Fern, 2)
+
+	if game:GetService("Workspace").GameMap:FindFirstChild("Water") then
+		local A_1 = game:GetService("Workspace").GameMap:FindFirstChild("Water")
+
+		if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+			local A_2 = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.p
+			local Event = game:GetService("Workspace").GameEvents.addThirst
+			Event:FireServer(A_1, A_2)
+		end
+	end
+end
+
+-- Calling the function continuously using Heartbeat
+game:GetService("RunService").Heartbeat:Connect(function()
+	autoEatDrink()
+end)
+
+
+-- Function to move and anchor the character
+local function moveAndAnchorCharacter()
+	local targetPosition = Vector3.new(3291.00244, 722.203125, -2795.0415)
+	local player = game.Players.LocalPlayer
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+
+	-- Check if a "StandBlock" already exists in the workspace
+	local existingStandBlock = workspace:FindFirstChild("StandBlock")
+	if existingStandBlock then
+		-- Destroy the existing "StandBlock"
+		existingStandBlock:Destroy()
+	end
+
+	-- Create a new "StandBlock" at the target position
+	local standBlock = Instance.new("Part")
+	standBlock.Size = Vector3.new(30, 1, 30) -- Adjust size as needed
+	standBlock.Position = targetPosition + Vector3.new(0, -0.5, 0) -- Slightly below the target position
+	standBlock.Anchored = true
+	standBlock.Parent = workspace
+	standBlock.Name = "StandBlock"
+
+	-- Move the character to the block
+	hrp.CFrame = CFrame.new(targetPosition)
+end
+
+
+local function isElder(dino)
+	local player = game.Players.LocalPlayer
+	local memoryCard = player:FindFirstChild("MemoryCard")
+	if not memoryCard then return false end
+
+	local dinoData = memoryCard:FindFirstChild("DinosaurData"):FindFirstChild(dino)
+	if not dinoData then return false end
+
+	local growthValue = dinoData:FindFirstChild("Growth")
+	if not growthValue then return false end
+
+	local initialGrowth = growthValue.Value  -- Save the initial growth value
+	local timeElapsed = 0  -- Track time since the check started
+
+	-- Check for growth changes over 10 seconds
+	while timeElapsed < 10 do
+		wait(1)  -- Wait for 1 second each time
+		timeElapsed = timeElapsed + 1
+
+		-- If growth changes, mark as not elder and exit
+		if growthValue.Value ~= initialGrowth then
+			print(dino .. " growth has changed in the last 10 seconds, marking as not elder.")
+			return false  -- Growth changed, so it's not elder
+		end
+	end
+
+	-- If no change in growth after 10 seconds, mark as elder
+	print(dino .. " growth has not changed for 10 seconds, marking as elder.")
+	return true
+end
+
+
+
+local function watchAgeValue(dino)
+	local player = game.Players.LocalPlayer
+	local memoryCard = player:FindFirstChild("MemoryCard")
+	if not memoryCard then return end
+
+	local dinoData = memoryCard:FindFirstChild("DinosaurData"):FindFirstChild(dino)
+	if not dinoData then return end
+
+	local ageValue = dinoData:FindFirstChild("Age")
+	if not ageValue then return end
+
+	-- Connect to the Changed event
+	ageValue.Changed:Connect(function(newValue)
+		print(dino .. " - Age changed to: " .. newValue)
+
+		-- Call the moveAndAnchorCharacter function when the Age changes
+		moveAndAnchorCharacter()
+	end)
+end
+
+
+
+-- Auto Elder function
+local function autoElder()
+	-- Wait until the dinosaurList is not empty
+	while #dinosaurList == 0 do
+		print("No dinosaurs in the list. Waiting for dinosaurs to be added...")
+		wait(5)  -- Check every 5 seconds if dinosaurs are added
+	end
+
+	print("Dinosaurs found! Starting the autoElder process...")
+
+	while _G.AutoEatDrink do
+		for i, dino in ipairs(dinosaurList) do
+			if isPaused then
+				print("Auto Elder process is paused.")
+				break
+			end
+
+			if isSwitchingDino then
+				print("Already switching dinosaur; skipping additional switch.")
+				continue
+			end
+
+			isSwitchingDino = true -- Set flag to prevent additional switches
+
+			-- Locate the label within the nested structure
+			local label = nil
+			if ScrollingFrame and ScrollingFrame:FindFirstChild(dino) then
+				label = ScrollingFrame:FindFirstChild(dino)
+			elseif ScrollingFrame and ScrollingFrame:FindFirstChild("Frame") then
+				local nestedFrame = ScrollingFrame:FindFirstChild("Frame")
+				if nestedFrame and nestedFrame:FindFirstChild(dino) then
+					label = nestedFrame:FindFirstChild(dino)
+				end
+			end
+
+			-- Update the label text if found
+			if label then
+				label.Text = dino .. ": Changing..."
+			else
+				print("Label for " .. dino .. " not found in ScrollingFrame hierarchy.")
+			end
+
+			print("Changing to " .. dino .. "...")
+
+			-- Go to menu and wait for the menu to load
+			game.Workspace.GameEvents.GoToMenu:FireServer(7)
+			wait(10)
+
+			-- Change dinosaur and wait for the model to spawn
+			local args = { [1] = dino }
+			workspace.GameEvents.ChangeDinosaur:FireServer(unpack(args))
+			print("Changed to " .. dino)
+			wait(5)
+
+			-- Start player and confirm dinosaur spawn
+			workspace.GameEvents.StartPlayer:FireServer()
+			wait(5)
+
+			-- Watch for age changes in a non-blocking manner
+			coroutine.wrap(function()
+				watchAgeValue(dino)
+			end)()
+
+			-- Check if the dinosaur is elder
+			local success, isElderResult = pcall(isElder, dino)
+			if not success then
+				print("Error checking if " .. dino .. " is elder: " .. isElderResult)
+				if label then
+					label.Text = dino .. ": Error"
+				end
+				isSwitchingDino = false
+				continue
+			end
+
+			if not isElderResult then
+				if label then
+					label.Text = dino .. ": Not Elder"
+				end
+				print(dino .. " is not elder. Continuing auto eating and drinking...")
+
+				-- Move and anchor the character when not elder
+				moveAndAnchorCharacter()
+
+				while _G.AutoEatDrink and not isPaused do
+					wait(5)
+
+					-- Re-check elder status
+					if isElder(dino) then
+						if label then
+							label.Text = dino .. ": Elder"
+						end
+						print(dino .. " is now elder. Preparing to switch...")
+
+						-- Avoid redundant menu calls by checking isSwitchingDino
+						if not isSwitchingDino then
+							_G.AutoEatDrink = false
+							game.Workspace.GameEvents.GoToMenu:FireServer(7)
+							wait(10)
+						end
+						break
+					end
+				end
+			else
+				if label then
+					label.Text = dino .. ": Elder"
+				end
+				print(dino .. " is already elder.")
+			end
+
+			isSwitchingDino = false -- Reset the flag
+			wait(5) -- Delay before switching to the next dinosaur
+		end
+
+		print("Finished checking all dinosaurs. Restarting...")
+	end
+end
+
+
+
+-- Define the CFrame for the replenish location
+local replenishCFrame = CFrame.new(
+	33.7098351, 299.791718, -127.37986,
+	-0.265372962, -0.000434082933, 0.96414572,
+	4.83117084e-08, 0.999999881, 0.000450238673,
+	-0.964145839, 0.000119527751, -0.265372932
+)
+
+-- Flag to control whether to monitor the character
+local stopMonitoring = false
+
+-- Function to wait for and monitor the player's character
+local function monitorCharacter(player)
+	local isTeleporting = false -- Flag to prevent double firing
+
+	-- Ensure we have a monitoring flag
+	stopMonitoring = false
+
+	while not stopMonitoring do
+		-- Wait for the character to load
+		while not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") do
+			print("Waiting for character...")
+			player.CharacterAdded:Wait()
+			wait(1)
+		end
+
+		-- Start monitoring Moistness once character is valid
+		local character = player.Character
+		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+		local stats = character:FindFirstChild("Stats")
+
+		-- Validate Stats folder and required values
+		if not stats then
+			warn("Stats folder missing! Waiting...")
+			wait(1)
+			continue
+		end
+
+		local canSwim = stats:FindFirstChild("canSwim")
+		local moistness = stats:FindFirstChild("Moistness")
+
+		if not canSwim or not moistness then
+			warn("Required stats (canSwim or Moistness) missing! Waiting...")
+			wait(1)
+			continue
+		end
+
+		-- Continuously monitor Moistness
+		while character.Parent and not stopMonitoring do
+			wait(1) -- Check every second
+
+			-- Handle teleportation logic only if not already teleporting
+			if canSwim.Value and moistness.Value < 50 and not isTeleporting then
+				-- Find StandBlock in Workspace
+				local standBlock = workspace:FindFirstChild("StandBlock")
+				if not standBlock then
+					warn("StandBlock not found in Workspace!")
+					break
+				end
+
+				-- Save the position of StandBlock to teleport back later
+				local standBlockCFrame = standBlock.CFrame
+
+				-- Set the flag to prevent double firing
+				isTeleporting = true
+
+				-- Teleport to the replenish location
+				humanoidRootPart.CFrame = replenishCFrame
+				print("Teleporting to replenish location due to low Moistness...")
+
+				-- Wait to simulate replenishment (5 seconds)
+				wait(5)
+
+				-- Teleport back to the StandBlock position
+				humanoidRootPart.CFrame = standBlockCFrame
+				print("Teleporting back to StandBlock.")
+
+				-- Reset the flag after the teleportation and replenishment
+				isTeleporting = false
+			end
+		end
+
+		-- Exit monitoring if the stop flag is set
+		if stopMonitoring then
+			print("Stopped monitoring character.")
+			break
+		end
+	end
+end
+
+--//Oyxgen\\--
+local function stopMonitoringCharacter()
+	stopMonitoring = true
+	print("Monitoring has been stopped.")
+end
+
+
+-- Get the player object
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Start monitoring the character
+task.spawn(function()
+	monitorCharacter(player)
+end)
+
+--//Oyxgen\\--
+
+
+local stopMonitoringO = false
+
+-- Function to wait for and monitor the player's character
+local function monitorCharacterO(player)
+	local hasTeleported = false -- Flag to prevent multiple teleportations
+
+	-- Ensure we have a monitoring flag
+	stopMonitoringO = false
+
+	while not stopMonitoringO do
+		-- Wait for the character to load
+		while not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") do
+			print("Waiting for character...")
+			player.CharacterAdded:Wait()
+			wait(1)
+		end
+
+		-- Start monitoring Oxygen once character is valid
+		local character = player.Character
+		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+		local stats = character:FindFirstChild("Stats")
+
+		-- Validate Stats folder and required values
+		if not stats then
+			warn("Stats folder missing! Waiting...")
+			wait(1)
+			continue
+		end
+
+		local oxygen = stats:FindFirstChild("Oxygen")
+
+		if not oxygen then
+			warn("Oxygen stat missing! Waiting...")
+			wait(1)
+			continue
+		end
+
+		-- Continuously monitor Oxygen
+		while character.Parent and not stopMonitoringO do
+			wait(1) -- Check every second
+
+			-- Handle teleportation if oxygen is below threshold and hasn't already teleported
+			if oxygen.Value < 700 and not hasTeleported then
+				-- Find StandBlock in Workspace
+				local standBlock = workspace:FindFirstChild("StandBlock")
+				if not standBlock then
+					warn("StandBlock not found in Workspace!")
+					break
+				end
+
+				-- Teleport to the StandBlock location
+				humanoidRootPart.CFrame = standBlock.CFrame
+				print("Teleported to StandBlock due to low Oxygen.")
+
+				-- Set the flag to prevent further teleportation
+				hasTeleported = true
+			end
+
+			-- Reset teleportation flag if oxygen is replenished
+			if oxygen.Value >= 700 then
+				hasTeleported = false
+			end
+		end
+
+		-- Exit monitoring if the stop flag is set
+		if stopMonitoringO then
+			print("Stopped monitoring character.")
+			break
+		end
+	end
+end
+
+-- Function to stop monitoring
+local function stopMonitoringCharacterO()
+	stopMonitoringO = true
+	print("Monitoring has been stopped.")
+end
+
+-- Get the player object
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Start monitoring the character
+task.spawn(function()
+	monitorCharacterO(player)
+end)
+
+
+
+
+
+-- Add this call to your StartButton's functionality
+StartButton.MouseButton1Click:Connect(function()
+	if not _G.AutoEatDrink then
+		_G.AutoEatDrink = true
+		autoEatDrinkCoroutine = coroutine.wrap(autoEatDrink)
+		autoEatDrinkCoroutine()
+		autoElderCoroutine = coroutine.wrap(autoElder)
+		autoElderCoroutine()
+	end
+end)
+
+
+-- Function to watch the "Age" value for changes
+local function watchAgeValue(dino)
+	local player = game.Players.LocalPlayer
+	local memoryCard = player:FindFirstChild("MemoryCard")
+	if not memoryCard then return end
+
+	local dinoData = memoryCard:FindFirstChild("DinosaurData"):FindFirstChild(dino)
+	if not dinoData then return end
+
+	local ageValue = dinoData:FindFirstChild("Age")
+	if not ageValue then return end
+
+	-- Connect to the Changed event
+	ageValue.Changed:Connect(function(newValue)
+		print(dino .. " - Age changed to: " .. newValue)
+
+		-- Call the moveAndAnchorCharacter function when the Age changes
+		moveAndAnchorCharacter()
+	end)
+end
+
+
+PauseButton.MouseButton1Click:Connect(function()
+	isPaused = not isPaused
+	PauseButton.Text = isPaused and "Resume" or "Pause"
+	stopMonitoringCharacter()
+end)
+
+ExitButton.MouseButton1Click:Connect(function()
+	_G.AutoEatDrink = false
+	if ScreenGui then
+		ScreenGui:Destroy()
+		stopMonitoringCharacter()
+	end
+end)
