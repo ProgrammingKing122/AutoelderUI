@@ -525,77 +525,67 @@ task.spawn(function()
 end)
 
 --//Oyxgen\\--
+-- Get the Players service
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 
-
+-- Stop monitoring flag
 local stopMonitoringO = false
 
--- Function to wait for and monitor the player's character
+-- Function to monitor the player's character
 local function monitorCharacterO(player)
-	local hasTeleported = false -- Flag to prevent multiple teleportations
-
-	-- Ensure we have a monitoring flag
-	stopMonitoringO = false
-
 	while not stopMonitoringO do
 		-- Wait for the character to load
 		while not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") do
 			print("Waiting for character...")
 			player.CharacterAdded:Wait()
-			wait(1)
+			task.wait(1)
 		end
 
-		-- Start monitoring Oxygen once character is valid
+		-- Character and necessary parts
 		local character = player.Character
-		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+		local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 		local stats = character:FindFirstChild("Stats")
 
-		-- Validate Stats folder and required values
+		-- Ensure the Stats folder and Oxygen value exist
 		if not stats then
-			--warn("Stats folder missing! Waiting...")
-			wait(1)
+			print("Stats folder missing! Waiting...")
+			task.wait(1)
 			continue
 		end
 
 		local oxygen = stats:FindFirstChild("Oxygen")
-
 		if not oxygen then
-			--warn("Oxygen stat missing! Waiting...")
-			wait(1)
+			print("Oxygen stat missing! Waiting...")
+			task.wait(1)
 			continue
 		end
 
-		-- Continuously monitor Oxygen
-		while character.Parent and not stopMonitoringO do
-			wait(1) -- Check every second
+		local hasTeleported = false -- Flag to handle teleport logic
 
-			-- Handle teleportation if oxygen is below threshold and hasn't already teleported
-			if oxygen.Value < 700 and not hasTeleported then
-				-- Find StandBlock in Workspace
+		-- Continuous monitoring loop
+		while not stopMonitoringO and character.Parent do
+			task.wait(1) -- Check every second
+
+			-- Handle low Oxygen
+			if oxygen.Value < 750 and not hasTeleported then
 				local standBlock = workspace:FindFirstChild("StandBlock")
-				if not standBlock then
-					--warn("StandBlock not found in Workspace!")
-					break
+				if standBlock then
+					humanoidRootPart.CFrame = standBlock.CFrame
+					print("Teleported to StandBlock due to low Oxygen.")
+					hasTeleported = true
+				else
+					warn("StandBlock not found in Workspace!")
 				end
-
-				-- Teleport to the StandBlock location
-				humanoidRootPart.CFrame = standBlock.CFrame
-				print("Teleported to StandBlock due to low Oxygen.")
-
-				-- Set the flag to prevent further teleportation
-				hasTeleported = true
 			end
 
-			-- Reset teleportation flag if oxygen is replenished
-			if oxygen.Value >= 700 then
+			-- Reset teleport flag if oxygen replenishes
+			if oxygen.Value >= 750 then
 				hasTeleported = false
 			end
 		end
 
-		-- Exit monitoring if the stop flag is set
-		if stopMonitoringO then
-			print("Stopped monitoring character.")
-			break
-		end
+		print("Monitoring loop ended. Restarting...")
 	end
 end
 
@@ -604,10 +594,6 @@ local function stopMonitoringCharacterO()
 	stopMonitoringO = true
 	print("Monitoring has been stopped.")
 end
-
--- Get the player object
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
 
 -- Start monitoring the character
 task.spawn(function()
